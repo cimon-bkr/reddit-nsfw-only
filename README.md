@@ -33,3 +33,6 @@ This is a modified derivative of GPLv3 projects:
 - https://github.com/variablenine/morphe-patches
 
 See `LICENSE` and `NOTICE`. This fork is not affiliated with Reddit or the upstream maintainers.
+
+
+<!-- CI trigger: validate the 0.2.1 candidate; this commit does not publish a release. -->
