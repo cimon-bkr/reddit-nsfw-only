@@ -126,15 +126,18 @@ public final class BlockNsfwContentPatch {
     }
 
     /**
-     * Modern Home path. Reddit's mapped feed elements no longer carry an NSFW bit, so this is
-     * injected into the page builder while the GraphQL cell response still contains post
-     * indicator enums. Strict policy: only edges positively identified as NSFW posts survive.
-     * SFW posts, non-post units and unreadable/unknown edges are dropped.
+     * Modern Home path. Filter only positively identified SFW posts.
+     *
+     * Keep original GraphQL edge objects for retained NSFW posts so Reddit's renderer
+     * receives the complete payload (title, preview, image/video, flair, author and layout
+     * metadata). Non-post feed units are retained.
+     *
+     * Unknown response shapes and scanner failures fail open: never clear a feed just because
+     * Reddit changed an internal model.
      */
     public static void filterHomeFeedResponse(Object response) {
         if (response == null) return;
 
-        List<Object> firstNonEmptyList = null;
         try {
             for (Field field : response.getClass().getDeclaredFields()) {
                 if (!List.class.isAssignableFrom(field.getType())) continue;
@@ -143,38 +146,47 @@ public final class BlockNsfwContentPatch {
                 if (!(value instanceof List<?> raw) || raw.isEmpty()) continue;
 
                 List<Object> edges = (List<Object>) raw;
-                if (firstNonEmptyList == null) firstNonEmptyList = edges;
-
                 List<Object> keep = new ArrayList<>(edges.size());
-                int posts = 0;
+                int recognizedPosts = 0;
+
+                // Scan first; only mutate after classification completes successfully.
                 for (Object edge : edges) {
                     NsfwCellScanner.Scan scan = NsfwCellScanner.scan(edge);
-                    if (scan == null) continue;
-                    posts++;
+                    if (scan == null) {
+                        // Ads, layout/furniture units and unknown non-post values are not posts.
+                        keep.add(edge);
+                        continue;
+                    }
+
+                    recognizedPosts++;
                     if (scan.nsfw) keep.add(edge);
+                    else Log.d(TAG, "Removing positively identified SFW home post");
                 }
 
-                if (posts == 0) continue;
+                if (recognizedPosts == 0) {
+                    // This list does not contain recognizable post edges. Leave it untouched
+                    // and inspect another list field if the response has one.
+                    continue;
+                }
 
                 int before = edges.size();
+                if (keep.size() == before) {
+                    Log.d(TAG, "Home feed unchanged: no confirmed SFW posts");
+                    return;
+                }
+
+                // Keep the exact original edge instances: do not rebuild or strip media data.
                 edges.clear();
                 edges.addAll(keep);
-                Log.d(TAG, "Strict home filter kept " + keep.size() + " NSFW posts from "
-                        + posts + " readable posts (" + before + " total edges)");
+                Log.d(TAG, "Home filter kept " + keep.size() + " feed units and removed "
+                        + (before - keep.size()) + " confirmed SFW posts");
                 return;
             }
 
-            // A non-empty response with no readable post ids is an unknown model shape. v0.1
-            // failed open here. v0.2 deliberately fails closed: an empty feed is preferable to
-            // allowing an unclassified SFW post through.
-            if (firstNonEmptyList != null) {
-                int before = firstNonEmptyList.size();
-                firstNonEmptyList.clear();
-                Log.d(TAG, "Strict home filter cleared " + before + " unclassified edges");
-            }
+            Log.d(TAG, "Home feed unchanged: no recognized post list found");
         } catch (Throwable ex) {
-            Log.e(TAG, "filterHomeFeedResponse failure; clearing readable list fields", ex);
-            clearListFields(response);
+            // Classification/reflection errors must not turn into a blank or damaged feed.
+            Log.e(TAG, "filterHomeFeedResponse failed; leaving original feed intact", ex);
         }
     }
 
