@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-10-19T00:00:00Z",
-  "description": "Reddit NSFW Only: independently maintained Morphe patch bundle. Home-feed filtering is the confirmed working behavior; other feeds are experimental.",
-  "download_url": "https://github.com/Berkelyum9/reddit-nsfw-only/releases/download/v0.2.0/reddit-nsfw-only-0.2.0.mpp",
+  "created_at": "2026-11-17T00:00:00Z",
+  "description": "cimon-bkr fork: NSFW-only filtering with Home-feed integrity and media preservation. 0.2.1 is a candidate pending CI and device verification.",
+  "download_url": "https://github.com/cimon-bkr/reddit-nsfw-only/releases/download/v0.2.1/reddit-nsfw-only-0.2.1.mpp",
   "signature_download_url": "",
-  "version": "0.2.0"
+  "version": "0.2.1"
 }
