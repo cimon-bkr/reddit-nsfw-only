@@ -11,7 +11,12 @@ public final class BlockNsfwContentPatchTest {
     static final class Edge {
         Object id;
         Object indicators;
-        Edge(String id, Object indicators) { this.id = id; this.indicators = indicators; }
+        final Object mediaPayload;
+        Edge(String id, Object indicators) {
+            this.id = id;
+            this.indicators = indicators;
+            this.mediaPayload = new Object();
+        }
     }
 
     static final class HomeResponse {
@@ -38,18 +43,26 @@ public final class BlockNsfwContentPatchTest {
 
         HomeResponse mixed = new HomeResponse(sfwEdge, nonPost, nsfwEdge);
         BlockNsfwContentPatch.filterHomeFeedResponse(mixed);
-        require(mixed.edges.size() == 1 && mixed.edges.get(0) == nsfwEdge,
-                "home: only confirmed NSFW edge survives");
+        require(mixed.edges.size() == 2 && mixed.edges.get(0) == nonPost
+                        && mixed.edges.get(1) == nsfwEdge,
+                "home: preserve non-post layout unit and confirmed NSFW edge");
+        require(mixed.edges.get(1) == nsfwEdge && ((Edge) mixed.edges.get(1)).mediaPayload == nsfwEdge.mediaPayload,
+                "home: retained edge and its media payload identity must be unchanged");
 
         HomeResponse allSfw = new HomeResponse(
                 new Edge("t3_one", List.of(CellIndicatorType.SPOILER)),
                 new Edge("t3_two", List.of(CellIndicatorType.ORIGINAL)));
         BlockNsfwContentPatch.filterHomeFeedResponse(allSfw);
-        require(allSfw.edges.isEmpty(), "home: all-SFW page fails closed to empty");
+        require(allSfw.edges.isEmpty(), "home: positively identified SFW posts are removed");
 
-        HomeResponse unknownShape = new HomeResponse(new Object(), new Object());
+        Object unknownOne = new Object();
+        Object unknownTwo = new Object();
+        HomeResponse unknownShape = new HomeResponse(unknownOne, unknownTwo);
         BlockNsfwContentPatch.filterHomeFeedResponse(unknownShape);
-        require(unknownShape.edges.isEmpty(), "home: unreadable page fails closed to empty");
+        require(unknownShape.edges.size() == 2
+                        && unknownShape.edges.get(0) == unknownOne
+                        && unknownShape.edges.get(1) == unknownTwo,
+                "home: unknown response shape must remain intact");
 
         System.out.println("BlockNsfwContentPatchTest: PASS");
     }
