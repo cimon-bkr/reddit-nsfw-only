@@ -76,8 +76,13 @@ val nsfwOnlyPatch = bytecodePatch(
 
         PreferenceRepositorySetOver18Fingerprint.method.addInstruction(0, "const/4 p1, 0x1")
 
-        PreferenceRepositoryIsBlurNsfwFingerprint.matchOrNull()?.method?.returnEarly(false)
-            ?: logger.warning("Could not force NSFW image blurring off")
+        // Disable the persisted account-level blur preference at its source. This is
+        // consumed by feed thumbnails and the full-screen media viewer.
+        AccountPreferencesGetNoProfanityFingerprint.method.returnEarly(false)
+
+        // Also override the repository decision used by logged-in and incognito sessions.
+        // Keep this mandatory: a silently missing hook would leave Reddit's blur active.
+        PreferenceRepositoryIsBlurNsfwFingerprint.method.returnEarly(false)
 
         SafeSearchStoredValueFingerprint.matchOrNull()?.let {
             val safeSearchOff = """
