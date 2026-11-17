@@ -35,6 +35,17 @@ internal object AccountPreferencesGetSearchIncludeOver18Fingerprint : Fingerprin
 )
 
 /**
+ * AccountPreferences.getNoProfanity()
+ * Reddit uses this account preference as the persisted NSFW media-blur setting.
+ */
+internal object AccountPreferencesGetNoProfanityFingerprint : Fingerprint(
+    definingClass = ACCOUNT_PREFERENCES_CLASS,
+    name = "getNoProfanity",
+    returnType = "Z",
+    parameters = listOf()
+)
+
+/**
  * RedditPreferenceRepository.isOver18()
  * Logged in uses the account preferences, incognito uses a local preference.
  */
