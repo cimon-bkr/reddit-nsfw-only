@@ -39,3 +39,8 @@ See `LICENSE` and `NOTICE`. This fork is not affiliated with Reddit or the upstr
 
 
 <!-- v0.2.1 release trigger: CI tests and Morphe bundle build passed. -->
+
+
+## v0.2.2 release candidate
+
+This release disables the persisted account NSFW-blur preference and the repository blur decision. CI confirms the Java regression tests pass and the Morphe bundle compiles with a DEX payload for the declared Reddit 2026.39.0 target. The build does not execute the patch against an installed Reddit APK or independently prove that every media-viewer renderer honors these preferences; verify feed thumbnails and full-screen media after installing.
