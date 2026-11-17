@@ -36,3 +36,6 @@ See `LICENSE` and `NOTICE`. This fork is not affiliated with Reddit or the upstr
 
 
 <!-- CI trigger: validate the 0.2.1 candidate; this commit does not publish a release. -->
+
+
+<!-- v0.2.1 release trigger: CI tests and Morphe bundle build passed. -->
