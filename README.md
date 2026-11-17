@@ -1,34 +1,35 @@
 # Reddit NSFW Only
 
-An independent Morphe patch project maintained by **Berkelyum9**.
+An independently maintained Morphe patch fork by **cimon-bkr**.
 
-## Stable release
+## Current candidate
 
-- Version: **0.2.0**
-- Intended Reddit target: **2026.39.0**
+- Version: **0.2.1**
+- Intended Reddit target inherited from upstream: **2026.39.0**
 - Package: `com.reddit.frontpage`
-- Known behaviour: NSFW-only filtering on the Home feed. Other screens are not claimed as verified in this stable release.
+- Goal: keep NSFW-only filtering while preserving normal Home-feed rendering.
 
-Download: [Reddit NSFW Only v0.2.0](https://github.com/Berkelyum9/reddit-nsfw-only/releases/tag/v0.2.0)
+### 0.2.1 changes
 
-## Experimental compatibility work
+- Keep original GraphQL edge objects for NSFW posts so Reddit retains their complete title, thumbnail, image/video, flair, author and renderer metadata.
+- Preserve non-post feed units such as layout/furniture entries.
+- Remove only posts positively identified as SFW.
+- Leave unknown response shapes intact instead of clearing the feed.
+- Leave the original feed untouched if reflection/scanning fails.
 
-Reddit 2026.24.0 is being tested separately on the `feature/reddit-2026.24` branch. That work does not replace the stable v0.2.0 release. Successful compilation is not the same as confirmed runtime compatibility; the test package must be applied in Morphe and checked in the app.
+**Verification status:** source changes are committed, but the GitHub Actions build and on-device Morphe verification are pending. Do not treat this candidate as a stable release until both pass.
 
-## Add as a remote Morphe source
+## Install
 
-Use this repository:
-
-`https://github.com/Berkelyum9/reddit-nsfw-only`
-
-The repository's `patches-bundle.json` points to the stable v0.2.0 release asset. The stable release asset is kept unchanged while compatibility work continues.
+A release asset will be linked here after CI succeeds. For now, use the repository's Actions build artifact only for testing.
 
 ## Origin and license
 
-This is a separate derivative/adapted project based on GPLv3 work from:
+This is a modified derivative of GPLv3 projects:
 
+- https://github.com/Berkelyum9/reddit-nsfw-only
 - https://github.com/warleysr/reddit-nsfw-blocker
 - https://github.com/MorpheApp/morphe-patches
 - https://github.com/variablenine/morphe-patches
 
-See `LICENSE` and `NOTICE` for applicable terms.
+See `LICENSE` and `NOTICE`. This fork is not affiliated with Reddit or the upstream maintainers.
