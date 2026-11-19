@@ -14,6 +14,8 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.extensions.InstructionExtensions.getInstruction
 import app.morphe.patcher.patch.bytecodePatch
 import app.morphe.patcher.patch.resourcePatch
+import com.android.tools.smali.dexlib2.Opcode
+import com.android.tools.smali.dexlib2.iface.instruction.OneRegisterInstruction
 import com.android.tools.smali.dexlib2.iface.instruction.TwoRegisterInstruction
 import io.github.redditnsfwonly.patches.Constants.COMPATIBILITY_REDDIT
 import java.util.logging.Logger
@@ -80,6 +82,18 @@ val nsfwOnlyPatch = bytecodePatch(
             0,
             "invoke-static { p1 }, $EXTENSION_CLASS->setNsfwOnlyMode(Z)V"
         )
+
+        // The repository getter is also used for incognito/local preferences. Update the runtime
+        // mode from its real computed return value so an already-saved setting is restored at startup.
+        PreferenceRepositoryIsOver18Fingerprint.method.apply {
+            val returnIndex = implementation.instructions.indexOfLast { it.opcode == Opcode.RETURN }
+            check(returnIndex >= 0) { "Could not locate RedditPreferenceRepository.isOver18() return" }
+            val register = getInstruction<OneRegisterInstruction>(returnIndex).registerA
+            addInstructions(
+                returnIndex,
+                "invoke-static { v$register }, $EXTENSION_CLASS->setNsfwOnlyMode(Z)V"
+            )
+        }
 
         // Make both known blur decisions follow the selected mode.
         // The media-viewer renderer may have an additional path; that still needs on-device DEX verification.
