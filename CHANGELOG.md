@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 — Combined live NSFW modes (development candidate)
+## 0.3.0-rc.1 — Combined live NSFW modes (prerelease for testing)
 
 - Combine the Block NSFW behavior from warleysr's Reddit NSFW Blocker with the NSFW-only filtering from Berkelyum9's Reddit NSFW Only.
 - Reuse Reddit's native **Show mature content** setting as the live selector: OFF = Block NSFW; ON = NSFW-only.
