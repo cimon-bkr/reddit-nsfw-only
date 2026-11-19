@@ -1,10 +1,10 @@
-# Reddit NSFW Only v0.2.1
+# Reddit NSFW Modes v0.3.0 — development candidate
 
-This candidate fixes Home-feed rendering regressions while keeping NSFW-only filtering.
+This candidate combines two modes behind Reddit's native **Show mature content** setting:
 
-- Original GraphQL edge objects for retained NSFW posts are preserved unchanged, including the data Reddit uses to render titles, previews, images and videos.
-- Non-post layout/furniture entries are preserved.
-- Only positively classified SFW posts are removed.
-- Unknown response shapes and scanner failures no longer clear feed lists.
+- **OFF — Block NSFW:** retain SFW posts, remove NSFW posts, enable blur and safe search.
+- **ON — NSFW-only:** retain NSFW posts, remove SFW posts, disable the known blur-preference decisions and safe search.
 
-This release is pending CI and real-device verification. Do not install as a stable release until those checks pass.
+Filtering is applied in the modern Home GraphQL path, the Compose FeedData path (when its fingerprint matches), and legacy Listings. Retained Home edge objects are not rebuilt, so their media and renderer payloads remain intact.
+
+This is not a stable release. Exact 2026.40.0 DEX fingerprints and separate video-thumbnail / full-screen viewer blur paths still require validation against the installed APK and on-device testing.

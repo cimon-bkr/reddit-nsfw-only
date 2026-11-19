@@ -7,7 +7,6 @@
  *
  * See the included NOTICE file for GPLv3 Section 7 terms that apply to this code.
  */
-
 package io.github.redditnsfwonly.patches
 
 import app.morphe.patcher.Fingerprint
@@ -34,10 +33,7 @@ internal object AccountPreferencesGetSearchIncludeOver18Fingerprint : Fingerprin
     parameters = listOf()
 )
 
-/**
- * AccountPreferences.getNoProfanity()
- * Reddit uses this account preference as the persisted NSFW media-blur setting.
- */
+/** AccountPreferences.getNoProfanity() supplies the persisted NSFW media-blur preference. */
 internal object AccountPreferencesGetNoProfanityFingerprint : Fingerprint(
     definingClass = ACCOUNT_PREFERENCES_CLASS,
     name = "getNoProfanity",
@@ -46,8 +42,8 @@ internal object AccountPreferencesGetNoProfanityFingerprint : Fingerprint(
 )
 
 /**
- * RedditPreferenceRepository.isOver18()
- * Logged in uses the account preferences, incognito uses a local preference.
+ * RedditPreferenceRepository.isOver18(): logged in reads account preferences; incognito reads
+ * the local nsfw_over18_enabled preference. The getter/setter hooks update our runtime mode.
  */
 internal object PreferenceRepositoryIsOver18Fingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
@@ -66,10 +62,7 @@ internal object PreferenceRepositoryIsOver18Fingerprint : Fingerprint(
     )
 )
 
-/**
- * RedditPreferenceRepository.setOver18(Boolean)
- * Used by the settings switch, incognito mode, NSFW dialogs and chat mature content sheets.
- */
+/** RedditPreferenceRepository.setOver18(Boolean), called by the native settings switch. */
 internal object PreferenceRepositorySetOver18Fingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "Ljava/lang/Object;",
@@ -85,9 +78,7 @@ internal object SafeSearchStoredValueFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = SAFE_SEARCH_CLASS,
     parameters = listOf(),
-    filters = listOf(
-        string("com.reddit.search.repository.SAFE_SEARCH_ENUM")
-    )
+    filters = listOf(string("com.reddit.search.repository.SAFE_SEARCH_ENUM"))
 )
 
 internal object SafeSearchValueFingerprint : Fingerprint(
@@ -95,9 +86,7 @@ internal object SafeSearchValueFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = SAFE_SEARCH_CLASS,
     parameters = listOf(),
-    filters = listOf(
-        string("nsfw_over18_enabled")
-    )
+    filters = listOf(string("nsfw_over18_enabled"))
 )
 
 internal object SafeSearchEnabledFingerprint : Fingerprint(
@@ -105,15 +94,34 @@ internal object SafeSearchEnabledFingerprint : Fingerprint(
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "Z",
     parameters = listOf(),
+    filters = listOf(string("com.reddit.search.repository.SAFE_SEARCH_ENABLED"))
+)
+
+/**
+ * FeedData constructor used by Reddit's Compose feeds. The string fingerprint distinguishes
+ * the data model from unrelated list-bearing constructors.
+ */
+private object FeedDataToStringFingerprint : Fingerprint(
+    name = "toString",
+    returnType = "Ljava/lang/String;",
+    parameters = listOf(),
+    filters = listOf(string("FeedData(items="))
+)
+
+internal object FeedDataConstructorFingerprint : Fingerprint(
+    classFingerprint = FeedDataToStringFingerprint,
+    name = "<init>",
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.CONSTRUCTOR),
+    returnType = "V",
     filters = listOf(
-        string("com.reddit.search.repository.SAFE_SEARCH_ENABLED")
+        methodCall(
+            opcode = Opcode.INVOKE_DIRECT,
+            smali = "Ljava/lang/Object;-><init>()V"
+        )
     )
 )
 
 internal object NsfwHomeFeedPageFingerprint : Fingerprint(
-    // In Reddit 2026.39.0 the page mapper is R8-renamed to Lseo;->c. The HOME enum
-    // access plus this three-argument signature uniquely identifies the mapper even
-    // though Reddit no longer preserves its original package name.
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     parameters = listOf("L", "Ljava/lang/Integer;", "L"),
     filters = listOf(
@@ -123,46 +131,19 @@ internal object NsfwHomeFeedPageFingerprint : Fingerprint(
     )
 )
 
-/**
- * Sessions (logged in, logged out, incognito) where a user settings item is shown.
- *
- * @param key Settings item key, such as 'key_pref_over18'.
- */
+/** Sessions where a Reddit settings item is shown, identified by its item key. */
 internal fun settingsItemSessionsFingerprint(key: String) = Fingerprint(
     classFingerprint = Fingerprint(
         name = "<init>",
         returnType = "V",
-        filters = listOf(
-            string(key)
-        )
+        filters = listOf(string(key))
     ),
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
     returnType = "Ljava/util/Set;",
     parameters = listOf()
 )
 
-/**
- * RedditPreferenceRepository.isBlurNsfw()
- * Logged in uses the account 'no_profanity' preference, incognito uses a local preference.
- */
-internal object PreferenceRepositoryIsBlurNsfwFingerprint : Fingerprint(
-    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
-    returnType = "Z",
-    parameters = listOf(),
-    filters = listOf(
-        methodCall(
-            opcode = Opcode.INVOKE_INTERFACE,
-            smali = "Lcom/reddit/session/Session;->isIncognito()Z"
-        ),
-        string("nsfw_blur_enabled"),
-        methodCall(
-            opcode = Opcode.INVOKE_VIRTUAL,
-            smali = "$ACCOUNT_PREFERENCES_CLASS->getNoProfanity()Z"
-        )
-    )
-)
-
-// Morphe's 'Hide ads' patch also modifies this method.
+// Morphe's Hide Ads patch also modifies this constructor.
 internal object ListingFingerprint : Fingerprint(
     definingClass = "Lcom/reddit/domain/model/listing/Listing;",
     accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.CONSTRUCTOR),
@@ -181,3 +162,21 @@ internal object ListingFingerprint : Fingerprint(
         )
     )
 )
+
+internal object PreferenceRepositoryIsBlurNsfwFingerprint : Fingerprint(
+    accessFlags = listOf(AccessFlags.PUBLIC, AccessFlags.FINAL),
+    returnType = "Z",
+    parameters = listOf(),
+    filters = listOf(
+        methodCall(
+            opcode = Opcode.INVOKE_INTERFACE,
+            smali = "Lcom/reddit/session/Session;->isIncognito()Z"
+        ),
+        string("nsfw_blur_enabled"),
+        methodCall(
+            opcode = Opcode.INVOKE_VIRTUAL,
+            smali = "$ACCOUNT_PREFERENCES_CLASS->getNoProfanity()Z"
+        )
+    )
+)
+}

@@ -9,8 +9,8 @@ public final class BlockNsfwContentPatchTest {
     enum CellIndicatorType { APP, NSFW, ORIGINAL, QUARANTINED, SPOILER }
 
     static final class Edge {
-        Object id;
-        Object indicators;
+        final String id;
+        final Object indicators;
         final Object mediaPayload;
         Edge(String id, Object indicators) {
             this.id = id;
@@ -20,41 +20,76 @@ public final class BlockNsfwContentPatchTest {
     }
 
     static final class HomeResponse {
-        List<Object> edges;
-        HomeResponse(Object... edges) { this.edges = new ArrayList<>(Arrays.asList(edges)); }
+        final List<Object> edges;
+        HomeResponse(Object... edges) {
+            this.edges = new ArrayList<>(Arrays.asList(edges));
+        }
     }
 
     private static void require(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
     }
 
+    private static boolean containsIdentity(List<?> values, Object expected) {
+        for (Object value : values) if (value == expected) return true;
+        return false;
+    }
+
     public static void main(String[] args) {
         Link nsfw = new Link(true);
         Link sfw = new Link(false);
         Object structural = new Object();
-        List<?> legacy = BlockNsfwContentPatch.filterLinks(Arrays.asList(nsfw, sfw, structural));
-        require(legacy.contains(nsfw), "legacy: NSFW link must survive");
-        require(!legacy.contains(sfw), "legacy: SFW link must be removed");
-        require(legacy.contains(structural), "legacy: non-Link structural item must survive");
+
+        // Default mode: Block NSFW. SFW posts and non-post structure survive.
+        require(!BlockNsfwContentPatch.isNsfwOnlyMode(), "default mode is Block NSFW");
+        require(BlockNsfwContentPatch.getBlurEnabled(), "Block NSFW keeps media blur enabled");
+        require(BlockNsfwContentPatch.isSafeSearchEnabled(), "Block NSFW keeps safe search enabled");
+
+        List<?> blockLinks = BlockNsfwContentPatch.filterLinks(Arrays.asList(nsfw, sfw, structural));
+        require(!containsIdentity(blockLinks, nsfw), "Block NSFW removes legacy NSFW links");
+        require(containsIdentity(blockLinks, sfw), "Block NSFW keeps legacy SFW links");
+        require(containsIdentity(blockLinks, structural), "Block NSFW preserves structural units");
 
         Edge nsfwEdge = new Edge("t3_nsfw", List.of(CellIndicatorType.NSFW));
         Edge sfwEdge = new Edge("t3_sfw", List.of(CellIndicatorType.SPOILER));
-        Object nonPost = new Object();
+        HomeResponse blockHome = new HomeResponse(nsfwEdge, structural, sfwEdge);
+        BlockNsfwContentPatch.filterHomeFeedResponse(blockHome);
+        require(blockHome.edges.size() == 2
+                        && blockHome.edges.get(0) == structural
+                        && blockHome.edges.get(1) == sfwEdge,
+                "Block NSFW home mode keeps SFW and non-post units only");
 
-        HomeResponse mixed = new HomeResponse(sfwEdge, nonPost, nsfwEdge);
-        BlockNsfwContentPatch.filterHomeFeedResponse(mixed);
-        require(mixed.edges.size() == 2 && mixed.edges.get(0) == nonPost
-                        && mixed.edges.get(1) == nsfwEdge,
-                "home: preserve non-post layout unit and confirmed NSFW edge");
-        require(mixed.edges.get(1) == nsfwEdge && ((Edge) mixed.edges.get(1)).mediaPayload == nsfwEdge.mediaPayload,
-                "home: retained edge and its media payload identity must be unchanged");
+        List<?> blockFeed = BlockNsfwContentPatch.filterFeedItems(Arrays.asList(nsfw, sfw, structural));
+        require(!containsIdentity(blockFeed, nsfw) && containsIdentity(blockFeed, sfw)
+                        && containsIdentity(blockFeed, structural),
+                "Block NSFW filters Compose FeedData items");
 
-        HomeResponse allSfw = new HomeResponse(
-                new Edge("t3_one", List.of(CellIndicatorType.SPOILER)),
-                new Edge("t3_two", List.of(CellIndicatorType.ORIGINAL)));
-        BlockNsfwContentPatch.filterHomeFeedResponse(allSfw);
-        require(allSfw.edges.isEmpty(), "home: positively identified SFW posts are removed");
+        // Live switch: this is the same setting Reddit's native Show mature content switch writes.
+        BlockNsfwContentPatch.setNsfwOnlyMode(true);
+        require(BlockNsfwContentPatch.isNsfwOnlyMode(), "mode changes immediately to NSFW-only");
+        require(!BlockNsfwContentPatch.getBlurEnabled(), "NSFW-only disables the blur preference");
+        require(!BlockNsfwContentPatch.isSafeSearchEnabled(), "NSFW-only disables safe search");
 
+        List<?> onlyLinks = BlockNsfwContentPatch.filterLinks(Arrays.asList(nsfw, sfw, structural));
+        require(containsIdentity(onlyLinks, nsfw), "NSFW-only keeps legacy NSFW links");
+        require(!containsIdentity(onlyLinks, sfw), "NSFW-only removes legacy SFW links");
+        require(containsIdentity(onlyLinks, structural), "NSFW-only preserves structural units");
+
+        HomeResponse onlyHome = new HomeResponse(sfwEdge, structural, nsfwEdge);
+        BlockNsfwContentPatch.filterHomeFeedResponse(onlyHome);
+        require(onlyHome.edges.size() == 2
+                        && onlyHome.edges.get(0) == structural
+                        && onlyHome.edges.get(1) == nsfwEdge,
+                "NSFW-only home mode keeps NSFW and non-post units only");
+        require(((Edge) onlyHome.edges.get(1)).mediaPayload == nsfwEdge.mediaPayload,
+                "NSFW-only preserves the original edge and its media payload identity");
+
+        List<?> onlyFeed = BlockNsfwContentPatch.filterFeedItems(Arrays.asList(nsfw, sfw, structural));
+        require(containsIdentity(onlyFeed, nsfw) && !containsIdentity(onlyFeed, sfw)
+                        && containsIdentity(onlyFeed, structural),
+                "NSFW-only filters Compose FeedData items");
+
+        // Unknown response shapes fail open in either mode; no blank-feed regression.
         Object unknownOne = new Object();
         Object unknownTwo = new Object();
         HomeResponse unknownShape = new HomeResponse(unknownOne, unknownTwo);
@@ -62,7 +97,12 @@ public final class BlockNsfwContentPatchTest {
         require(unknownShape.edges.size() == 2
                         && unknownShape.edges.get(0) == unknownOne
                         && unknownShape.edges.get(1) == unknownTwo,
-                "home: unknown response shape must remain intact");
+                "unknown home response shapes remain intact");
+
+        BlockNsfwContentPatch.setNsfwOnlyMode(false);
+        require(!BlockNsfwContentPatch.isNsfwOnlyMode(), "mode can switch back without app restart");
+        require(BlockNsfwContentPatch.getBlurEnabled(), "blur re-enables after switching back");
+        require(BlockNsfwContentPatch.isSafeSearchEnabled(), "safe search re-enables after switching back");
 
         System.out.println("BlockNsfwContentPatchTest: PASS");
     }

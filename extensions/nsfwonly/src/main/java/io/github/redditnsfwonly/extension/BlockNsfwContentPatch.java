@@ -1,139 +1,126 @@
 /*
- * Reddit NSFW Only - derivative work based on Reddit NSFW Blocker by warleysr.
- * Modern home-feed filtering adapted from GPLv3 work in variablenine/morphe-patches.
- * See NOTICE and LICENSE.
+ * Reddit NSFW Only - combined live modes based on GPLv3 work from:
+ * https://github.com/warleysr/reddit-nsfw-blocker
+ * https://github.com/Berkelyum9/reddit-nsfw-only
+ * See NOTICE and LICENSE for applicable terms.
  */
 package io.github.redditnsfwonly.extension;
 
 import android.util.Log;
 import com.reddit.domain.model.Link;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Always-on patch that keeps mature Reddit content and removes non-NSFW feed posts. */
+/**
+ * Runtime policy for the combined NSFW mode patch.
+ *
+ * The Reddit "Show mature content" switch is the mode selector:
+ * OFF = Block NSFW; ON = NSFW only.
+ */
 @SuppressWarnings({"unused", "rawtypes", "unchecked"})
 public final class BlockNsfwContentPatch {
-    private static final String TAG = "RedditNsfwOnly";
+    private static final String TAG = "RedditNsfwModes";
 
-    private static final String SET_OVER_18_LAMBDA_CLASS =
-            "com.reddit.account.repository.RedditPreferenceRepository$setOver18$2";
-    private static final long ACCOUNT_SYNC_DELAY_MILLISECONDS = 5000;
+    // Default matches Reddit's usual disabled mature-content setting.
+    private static volatile boolean nsfwOnlyMode = false;
 
-    private static volatile Object preferenceRepository;
-    private static volatile boolean accountOver18ObservedOff;
-    private static final AtomicBoolean accountSyncStarted = new AtomicBoolean();
+    private BlockNsfwContentPatch() {}
 
-    public static void setPreferenceRepository(Object repository) {
-        if (repository == null || preferenceRepository == repository) return;
-        preferenceRepository = repository;
-        if (accountOver18ObservedOff) turnOnAccountOver18();
-    }
-
-    public static boolean getAccountOver18(boolean over18) {
-        if (!over18 && !accountOver18ObservedOff) {
-            accountOver18ObservedOff = true;
-            turnOnAccountOver18();
+    /** Called by Reddit's real preference getter and setter. */
+    public static void setNsfwOnlyMode(boolean enabled) {
+        boolean changed = nsfwOnlyMode != enabled;
+        nsfwOnlyMode = enabled;
+        if (changed) {
+            Log.i(TAG, "Mode changed to " + (enabled ? "NSFW only" : "Block NSFW"));
         }
-        return true;
     }
 
-    private static void turnOnAccountOver18() {
-        Object repository = preferenceRepository;
-        if (repository == null) return;
-        if (!accountSyncStarted.compareAndSet(false, true)) return;
-
-        Thread thread = new Thread(() -> {
-            try {
-                Thread.sleep(ACCOUNT_SYNC_DELAY_MILLISECONDS);
-                Log.i(TAG, "Turning on account 'Show mature content'");
-                runSetOver18(repository);
-            } catch (Exception ex) {
-                Log.e(TAG, "Could not turn on account 'Show mature content'", ex);
-            }
-        }, "reddit-nsfw-only");
-        thread.setDaemon(true);
-        thread.start();
+    public static boolean isNsfwOnlyMode() {
+        return nsfwOnlyMode;
     }
 
-    private static void runSetOver18(Object repository) throws Exception {
-        ClassLoader classLoader = repository.getClass().getClassLoader();
-        Class<?> lambdaClass = Class.forName(SET_OVER_18_LAMBDA_CLASS, true, classLoader);
-
-        Constructor<?> constructor = null;
-        for (Constructor<?> c : lambdaClass.getDeclaredConstructors()) {
-            Class<?>[] types = c.getParameterTypes();
-            if (types.length == 3 && types[0].isInstance(repository) && types[1] == boolean.class) {
-                constructor = c;
-                break;
-            }
-        }
-        if (constructor == null) {
-            throw new IllegalStateException("Could not find constructor of " + SET_OVER_18_LAMBDA_CLASS);
-        }
-        constructor.setAccessible(true);
-
-        Class<?> continuationClass = constructor.getParameterTypes()[2];
-        Class<?> coroutineContextClass = Class.forName("kotlin.coroutines.CoroutineContext", true, classLoader);
-        Object emptyCoroutineContext = Class.forName("kotlin.coroutines.EmptyCoroutineContext", true, classLoader)
-                .getField("INSTANCE").get(null);
-
-        Object completion = Proxy.newProxyInstance(classLoader, new Class<?>[]{continuationClass},
-                (proxy, method, args) -> {
-                    if (method.getReturnType() == coroutineContextClass) return emptyCoroutineContext;
-                    switch (method.getName()) {
-                        case "equals": return proxy == args[0];
-                        case "hashCode": return System.identityHashCode(proxy);
-                        case "toString": return "BlockNsfwContentPatch continuation";
-                    }
-                    if (args != null && args.length == 1) {
-                        Log.i(TAG, "Account 'Show mature content' update finished: " + args[0]);
-                    }
-                    return null;
-                });
-
-        Object lambda = constructor.newInstance(repository, true, null);
-        Method invoke = lambdaClass.getMethod("invoke", Object.class);
-        invoke.setAccessible(true);
-        invoke.invoke(lambda, completion);
+    /** Reddit's media preference is true only in Block NSFW mode. */
+    public static boolean getBlurEnabled() {
+        return !nsfwOnlyMode;
     }
 
-    /** Legacy listing path: only explicit over18 Links survive; non-Link furniture is preserved. */
+    /** Safe search is enabled in Block NSFW mode and disabled in NSFW-only mode. */
+    public static boolean isSafeSearchEnabled() {
+        return !nsfwOnlyMode;
+    }
+
+    private static boolean shouldKeepPost(boolean nsfw) {
+        return nsfwOnlyMode == nsfw;
+    }
+
+    /**
+     * Legacy Reddit listing path. Keep non-Link structural units unchanged.
+     */
     public static List<?> filterLinks(List<?> list) {
         if (list == null || list.isEmpty()) return list;
+
         try {
             List<Object> filtered = null;
-            final int size = list.size();
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < list.size(); i++) {
                 Object item = list.get(i);
-                if (item instanceof Link link && !link.getOver18()) {
-                    if (filtered == null) filtered = new ArrayList<>(list.subList(0, i));
-                    Log.d(TAG, "Removing SFW legacy link");
+                if (item instanceof Link link && !shouldKeepPost(link.getOver18())) {
+                    if (filtered == null) {
+                        filtered = new ArrayList<>(list.subList(0, i));
+                    }
+                    Log.d(TAG, "Removing " + (link.getOver18() ? "NSFW" : "SFW") + " legacy link");
                 } else if (filtered != null) {
                     filtered.add(item);
                 }
             }
             return filtered == null ? list : filtered;
-        } catch (Exception ex) {
-            Log.e(TAG, "filterLinks failure", ex);
+        } catch (Throwable ex) {
+            Log.e(TAG, "filterLinks failed; leaving original listing intact", ex);
             return list;
         }
     }
 
     /**
-     * Modern Home path. Filter only positively identified SFW posts.
-     *
-     * Keep original GraphQL edge objects for retained NSFW posts so Reddit's renderer
-     * receives the complete payload (title, preview, image/video, flair, author and layout
-     * metadata). Non-post feed units are retained.
-     *
-     * Unknown response shapes and scanner failures fail open: never clear a feed just because
-     * Reddit changed an internal model.
+     * Compose FeedData path used by feeds beyond modern Home.
+     * Unknown or structural feed units are preserved; only positively classified posts are filtered.
+     */
+    public static List<?> filterFeedItems(List<?> list) {
+        if (list == null || list.isEmpty()) return list;
+
+        try {
+            List<Object> filtered = null;
+            for (int i = 0; i < list.size(); i++) {
+                Object item = list.get(i);
+                Boolean nsfw = null;
+
+                if (item instanceof Link link) {
+                    nsfw = link.getOver18();
+                } else {
+                    NsfwCellScanner.Scan scan = NsfwCellScanner.scan(item);
+                    if (scan != null) nsfw = scan.nsfw;
+                }
+
+                if (nsfw != null && !shouldKeepPost(nsfw)) {
+                    if (filtered == null) {
+                        filtered = new ArrayList<>(list.subList(0, i));
+                    }
+                    Log.d(TAG, "Removing " + (nsfw ? "NSFW" : "SFW") + " compose feed item");
+                } else if (filtered != null) {
+                    filtered.add(item);
+                }
+            }
+            return filtered == null ? list : filtered;
+        } catch (Throwable ex) {
+            Log.e(TAG, "filterFeedItems failed; leaving original feed intact", ex);
+            return list;
+        }
+    }
+
+    /**
+     * Modern Home path. Reddit's GraphQL edges are filtered before mapping so retained
+     * NSFW/SFW items keep their original title, preview, image/video and renderer payload.
+     * Unknown response shapes and non-post units are preserved.
      */
     public static void filterHomeFeedResponse(Object response) {
         if (response == null) return;
@@ -148,62 +135,43 @@ public final class BlockNsfwContentPatch {
                 List<Object> edges = (List<Object>) raw;
                 List<Object> keep = new ArrayList<>(edges.size());
                 int recognizedPosts = 0;
+                int removedPosts = 0;
 
-                // Scan first; only mutate after classification completes successfully.
                 for (Object edge : edges) {
                     NsfwCellScanner.Scan scan = NsfwCellScanner.scan(edge);
                     if (scan == null) {
-                        // Ads, layout/furniture units and unknown non-post values are not posts.
                         keep.add(edge);
                         continue;
                     }
 
                     recognizedPosts++;
-                    if (scan.nsfw) keep.add(edge);
-                    else Log.d(TAG, "Removing positively identified SFW home post");
+                    if (shouldKeepPost(scan.nsfw)) {
+                        keep.add(edge);
+                    } else {
+                        removedPosts++;
+                        Log.d(TAG, "Removing " + (scan.nsfw ? "NSFW" : "SFW") + " Home post");
+                    }
                 }
 
                 if (recognizedPosts == 0) {
-                    // This list does not contain recognizable post edges. Leave it untouched
-                    // and inspect another list field if the response has one.
                     continue;
                 }
 
-                int before = edges.size();
-                if (keep.size() == before) {
-                    Log.d(TAG, "Home feed unchanged: no confirmed SFW posts");
+                if (keep.size() == edges.size()) {
+                    Log.d(TAG, "Home feed unchanged: no posts matched the opposite mode");
                     return;
                 }
 
-                // Keep the exact original edge instances: do not rebuild or strip media data.
+                // Preserve exact edge objects and media payloads; mutate only after scanning succeeds.
                 edges.clear();
                 edges.addAll(keep);
                 Log.d(TAG, "Home filter kept " + keep.size() + " feed units and removed "
-                        + (before - keep.size()) + " confirmed SFW posts");
+                        + removedPosts + " posts");
                 return;
             }
-
             Log.d(TAG, "Home feed unchanged: no recognized post list found");
         } catch (Throwable ex) {
-            // Classification/reflection errors must not turn into a blank or damaged feed.
             Log.e(TAG, "filterHomeFeedResponse failed; leaving original feed intact", ex);
-        }
-    }
-
-    private static void clearListFields(Object response) {
-        try {
-            for (Field field : response.getClass().getDeclaredFields()) {
-                if (!List.class.isAssignableFrom(field.getType())) continue;
-                try {
-                    field.setAccessible(true);
-                    Object value = field.get(response);
-                    if (value instanceof List<?> list) list.clear();
-                } catch (Throwable ignored) {
-                    // Best effort. The primary GraphQL edge list is mutable in the supported app.
-                }
-            }
-        } catch (Throwable ignored) {
-            // Nothing else to do without knowing the new response shape.
         }
     }
 }
