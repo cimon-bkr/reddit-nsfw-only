@@ -25,11 +25,23 @@ public final class BlockNsfwContentPatch {
 
     // Default matches Reddit's usual disabled mature-content setting.
     private static volatile boolean nsfwOnlyMode = false;
+    private static volatile boolean modeChangedByUser = false;
 
     private BlockNsfwContentPatch() {}
 
-    /** Called by Reddit's real preference getter and setter. */
+    /** Sync initial account/incognito preference without overriding a live user choice. */
+    public static void syncNsfwOnlyMode(boolean enabled) {
+        if (modeChangedByUser) return;
+        updateMode(enabled);
+    }
+
+    /** Called by Reddit's native preference setter when the user changes the mode switch. */
     public static void setNsfwOnlyMode(boolean enabled) {
+        modeChangedByUser = true;
+        updateMode(enabled);
+    }
+
+    private static void updateMode(boolean enabled) {
         boolean changed = nsfwOnlyMode != enabled;
         nsfwOnlyMode = enabled;
         if (changed) {
