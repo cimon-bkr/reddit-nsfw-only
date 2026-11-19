@@ -37,7 +37,7 @@ CI tests and bundle compilation are not substitutes for applying the patch to Re
 
 ## Install status
 
-Do not use this development branch as a stable release yet. The existing stable fork release is [v0.2.2](https://github.com/cimon-bkr/reddit-nsfw-only/releases/tag/v0.2.2). The v0.3.0 bundle will be published only after compatibility and runtime checks.
+The v0.3.0-rc.1 bundle is a prerelease for testing, not a stable release. The existing stable fork release remains [v0.2.2](https://github.com/cimon-bkr/reddit-nsfw-only/releases/tag/v0.2.2). Do not treat the candidate as verified for every 2026.40.0 APKM variant or as a confirmed fix for every media-viewer blur path.
 
 ## Build
 
