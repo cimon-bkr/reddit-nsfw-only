@@ -1,4 +1,4 @@
-# Reddit NSFW Modes v0.3.0 — development candidate
+# Reddit NSFW Modes v0.3.0-rc.1 — prerelease for testing
 
 This candidate combines two modes behind Reddit's native **Show mature content** setting:
 
@@ -7,4 +7,4 @@ This candidate combines two modes behind Reddit's native **Show mature content**
 
 Filtering is applied in the modern Home GraphQL path, the Compose FeedData path (when its fingerprint matches), and legacy Listings. Retained Home edge objects are not rebuilt, so their media and renderer payloads remain intact.
 
-This is not a stable release. Exact 2026.40.0 DEX fingerprints and separate video-thumbnail / full-screen viewer blur paths still require validation against the installed APK and on-device testing.
+This prerelease is for testing only and is not a stable release. Reddit 2026.40.0 is in the official Morphe compatibility target list, but the custom fingerprints in this fork have not yet been matched against your exact installed APKM split set. The video-thumbnail and full-screen viewer blur paths have not been verified. Do not assume the blur fix is complete. Test the toggle and both media paths before relying on it.
