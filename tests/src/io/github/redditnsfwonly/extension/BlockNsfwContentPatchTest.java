@@ -40,8 +40,15 @@ public final class BlockNsfwContentPatchTest {
         Link sfw = new Link(false);
         Object structural = new Object();
 
-        // Default mode: Block NSFW. SFW posts and non-post structure survive.
-        require(!BlockNsfwContentPatch.isNsfwOnlyMode(), "default mode is Block NSFW");
+        // Startup restores the saved Reddit preference. A later stale read must not undo a live change.
+        BlockNsfwContentPatch.syncNsfwOnlyMode(true);
+        require(BlockNsfwContentPatch.isNsfwOnlyMode(), "saved NSFW-only preference initializes the mode");
+        BlockNsfwContentPatch.setNsfwOnlyMode(false);
+        BlockNsfwContentPatch.syncNsfwOnlyMode(true);
+        require(!BlockNsfwContentPatch.isNsfwOnlyMode(), "stale preference reads do not overwrite a live user choice");
+
+        // Block NSFW mode: SFW posts and non-post structure survive.
+        require(!BlockNsfwContentPatch.isNsfwOnlyMode(), "mode is now Block NSFW");
         require(BlockNsfwContentPatch.getBlurEnabled(), "Block NSFW keeps media blur enabled");
         require(BlockNsfwContentPatch.isSafeSearchEnabled(), "Block NSFW keeps safe search enabled");
 
