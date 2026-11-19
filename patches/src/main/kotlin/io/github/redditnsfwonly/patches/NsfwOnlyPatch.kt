@@ -86,7 +86,9 @@ val nsfwOnlyPatch = bytecodePatch(
         // The repository getter is also used for incognito/local preferences. Update the runtime
         // mode from its real computed return value so an already-saved setting is restored at startup.
         PreferenceRepositoryIsOver18Fingerprint.method.apply {
-            val returnIndex = implementation.instructions.indexOfLast { it.opcode == Opcode.RETURN }
+            val methodImplementation = implementation
+                ?: error("RedditPreferenceRepository.isOver18() has no implementation")
+            val returnIndex = methodImplementation.instructions.indexOfLast { it.opcode == Opcode.RETURN }
             check(returnIndex >= 0) { "Could not locate RedditPreferenceRepository.isOver18() return" }
             val register = getInstruction<OneRegisterInstruction>(returnIndex).registerA
             addInstructions(
