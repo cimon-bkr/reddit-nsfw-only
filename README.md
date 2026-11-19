@@ -1,46 +1,55 @@
-# Reddit NSFW Only
+# Reddit NSFW Modes
 
 An independently maintained Morphe patch fork by **cimon-bkr**.
 
-## Current candidate
+## v0.3.0 candidate — live mode selector
 
-- Version: **0.2.1**
-- Intended Reddit target inherited from upstream: **2026.39.0**
-- Package: `com.reddit.frontpage`
-- Goal: keep NSFW-only filtering while preserving normal Home-feed rendering.
+This branch combines the GPLv3-based features of:
 
-### 0.2.1 changes
+- [Reddit NSFW Blocker](https://github.com/warleysr/reddit-nsfw-blocker)
+- [Reddit NSFW Only](https://github.com/Berkelyum9/reddit-nsfw-only)
 
-- Keep original GraphQL edge objects for NSFW posts so Reddit retains their complete title, thumbnail, image/video, flair, author and renderer metadata.
-- Preserve non-post feed units such as layout/furniture entries.
-- Remove only posts positively identified as SFW.
-- Leave unknown response shapes intact instead of clearing the feed.
-- Leave the original feed untouched if reflection/scanning fails.
+It uses Reddit's existing **Show mature content** switch as the live mode selector:
 
-**Verification status:** source changes are committed, but the GitHub Actions build and on-device Morphe verification are pending. Do not treat this candidate as a stable release until both pass.
+| Reddit setting | Patch mode | Feed behavior | Blur / safe search |
+|---|---|---|---|
+| OFF | **Block NSFW** | Keep SFW posts; remove NSFW posts | Blur ON; safe search ON |
+| ON | **NSFW-only** | Keep NSFW posts; remove SFW posts | Blur OFF; safe search OFF |
 
-## Install
+The setting is persisted by Reddit itself. Switching it updates the patch's runtime mode without reinstalling or re-patching. A feed that is already on screen may need a refresh before its contents reflect the new mode.
 
-A release asset will be linked here after CI succeeds. For now, use the repository's Actions build artifact only for testing.
+### Coverage in this candidate
+
+- Modern GraphQL Home feed, filtered before Reddit maps the feed cells.
+- Compose FeedData feeds, when the upstream constructor fingerprint matches.
+- Legacy Listing responses.
+- Original retained GraphQL edge objects are preserved, including their image/video payloads and layout metadata.
+- Unknown post shapes and non-post feed units are preserved; scanner failures fail open rather than blanking a feed.
+- The competing **Blur NSFW images** setting is hidden so it cannot conflict with mode behavior. **Show mature content** remains visible as the mode selector.
+
+### Important verification status
+
+This is a development candidate, not a verified release. The branch declares Reddit 2026.40.0 as a target, matching the installed version reported during development, but custom method fingerprints still need validation against the exact installed APK/split APK set.
+
+The two known preference hooks dynamically set the blur decision. This does **not yet prove** all thumbnails and full-screen media use those hooks. Reddit may have separate thumbnail/image-viewer rendering paths; those need inspection of the installed DEX and on-device testing before claiming blur is fixed.
+
+CI tests and bundle compilation are not substitutes for applying the patch to Reddit and checking both modes in the feed, video thumbnails, and full-screen viewer.
+
+## Install status
+
+Do not use this development branch as a stable release yet. The existing stable fork release is [v0.2.2](https://github.com/cimon-bkr/reddit-nsfw-only/releases/tag/v0.2.2). The v0.3.0 bundle will be published only after compatibility and runtime checks.
+
+## Build
+
+The GitHub Actions workflow tests both mode policies and builds the Morphe bundle on branch pushes and pull requests. It publishes releases only from main when explicitly triggered.
 
 ## Origin and license
 
-This is a modified derivative of GPLv3 projects:
+This fork is derivative work based on GPLv3 projects:
 
-- https://github.com/Berkelyum9/reddit-nsfw-only
 - https://github.com/warleysr/reddit-nsfw-blocker
+- https://github.com/Berkelyum9/reddit-nsfw-only
 - https://github.com/MorpheApp/morphe-patches
 - https://github.com/variablenine/morphe-patches
 
-See `LICENSE` and `NOTICE`. This fork is not affiliated with Reddit or the upstream maintainers.
-
-
-<!-- CI trigger: validate the 0.2.1 candidate; this commit does not publish a release. -->
-
-
-<!-- v0.2.1 release trigger: CI tests and Morphe bundle build passed. -->
-
-
-## v0.2.2 release candidate
-
-This release disables the persisted account NSFW-blur preference and the repository blur decision. CI confirms the Java regression tests pass and the Morphe bundle compiles with a DEX payload for the declared Reddit 2026.39.0 target. The build does not execute the patch against an installed Reddit APK or independently prove that every media-viewer renderer honors these preferences; verify feed thumbnails and full-screen media after installing.
+See LICENSE and NOTICE for applicable GPLv3 terms. This project is not affiliated with Reddit or the upstream maintainers.
