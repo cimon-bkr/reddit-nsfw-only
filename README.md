@@ -41,7 +41,7 @@ The v0.3.0-rc.1 bundle is a prerelease for testing, not a stable release. The ex
 
 ## Build
 
-The GitHub Actions workflow tests both mode policies and builds the Morphe bundle on branch pushes and pull requests. It publishes releases only from main when explicitly triggered.
+The GitHub Actions workflow tests both mode policies and builds the Morphe bundle on branch pushes and pull requests. The v0.3.0-rc.1 prerelease is published only from the feature/live-nsfw-modes branch when explicitly triggered after review; stable releases remain restricted to main.
 
 ## Origin and license
 
