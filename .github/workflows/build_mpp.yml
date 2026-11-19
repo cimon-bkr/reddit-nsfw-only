@@ -51,6 +51,26 @@ jobs:
             !patches/build/libs/patches-*-sources.mpp
           if-no-files-found: error
 
+      - name: Publish v0.3.0 release candidate from feature branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feature/live-nsfw-modes' && contains(github.event.head_commit.message, '[publish-prerelease]')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v0.3.0-rc.1"
+          SRC=$(ls patches/build/libs/patches-*.mpp | grep -v -e '-javadoc' -e '-sources' | head -n1)
+          ASSET="reddit-nsfw-modes-0.3.0-rc.1.mpp"
+          cp "$SRC" "$ASSET"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists; refusing to overwrite it."
+            exit 1
+          fi
+
+          gh release create "$TAG" "$ASSET" --target "$GITHUB_SHA" --prerelease \
+            --title "Reddit NSFW Modes v0.3.0-rc.1" \
+            --notes-file RELEASE_NOTES.md
+
       - name: Publish stable GitHub release from main only
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[publish-release]')
         env:
