@@ -66,7 +66,7 @@ val nsfwOnlyPatch = bytecodePatch(
             0,
             """
                 iget-boolean p0, p0, $ACCOUNT_PREFERENCES_CLASS->over18:Z
-                invoke-static { p0 }, $EXTENSION_CLASS->setNsfwOnlyMode(Z)V
+                invoke-static { p0 }, $EXTENSION_CLASS->syncNsfwOnlyMode(Z)V
                 return p0
             """
         )
@@ -93,7 +93,7 @@ val nsfwOnlyPatch = bytecodePatch(
             val register = getInstruction<OneRegisterInstruction>(returnIndex).registerA
             addInstructions(
                 returnIndex,
-                "invoke-static { v$register }, $EXTENSION_CLASS->setNsfwOnlyMode(Z)V"
+                "invoke-static { v$register }, $EXTENSION_CLASS->syncNsfwOnlyMode(Z)V"
             )
         }
 
