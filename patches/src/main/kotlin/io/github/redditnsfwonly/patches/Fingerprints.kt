@@ -179,4 +179,3 @@ internal object PreferenceRepositoryIsBlurNsfwFingerprint : Fingerprint(
         )
     )
 )
-}
