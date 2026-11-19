@@ -5,7 +5,7 @@ patches {
         name = "Reddit NSFW Modes"
         description = "Live switch between blocking NSFW posts and showing NSFW-only feeds"
         source = "https://github.com/cimon-bkr/reddit-nsfw-only"
-        author = "Berkelyum9"
+        author = "cimon-bkr (based on GPLv3 upstream work by warleysr and Berkelyum9)"
         contact = "https://github.com/cimon-bkr/reddit-nsfw-only/issues"
         website = "https://github.com/cimon-bkr/reddit-nsfw-only"
         license = "GNU General Public License v3.0, with preserved upstream NOTICE requirements"
