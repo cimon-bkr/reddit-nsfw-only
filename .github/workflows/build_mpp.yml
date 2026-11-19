@@ -1,10 +1,11 @@
 name: Build mpp
-run-name: Build Reddit NSFW Only bundle
+run-name: Build Reddit NSFW modes bundle
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: ["**"]
+  pull_request:
 
 permissions:
   contents: write
@@ -22,7 +23,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Unit-test feed classification/filter policy
+      - name: Unit-test both live modes
         run: ./tests/run-tests.sh
 
       - name: Setup Gradle 9.8
@@ -43,14 +44,14 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: reddit-nsfw-only-mpp
+          name: reddit-nsfw-modes-mpp
           path: |
             patches/build/libs/patches-*.mpp
             !patches/build/libs/patches-*-javadoc.mpp
             !patches/build/libs/patches-*-sources.mpp
           if-no-files-found: error
 
-      - name: Publish new stable GitHub release (never overwrite an existing version)
+      - name: Publish stable GitHub release from main only
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[publish-release]')
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,10 +64,10 @@ jobs:
           cp "$SRC" "$ASSET"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::notice::Release $TAG already exists. Keeping it unchanged; bump version in gradle.properties to publish a new release."
+            echo "::notice::Release $TAG already exists; keeping it unchanged."
             exit 0
           fi
 
           gh release create "$TAG" "$ASSET" --target "$GITHUB_SHA" \
-            --title "Reddit NSFW Only v$VERSION" \
-            --notes "Morphe patch bundle for Reddit NSFW Only v$VERSION."
+            --title "Reddit NSFW Modes v$VERSION" \
+            --notes "Combined live Block NSFW / NSFW-only mode patch for Reddit."
