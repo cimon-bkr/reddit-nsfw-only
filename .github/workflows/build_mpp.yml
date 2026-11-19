@@ -23,7 +23,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Unit-test both live modes
+      - name: Unit-test both live modes and reversal
         run: ./tests/run-tests.sh
 
       - name: Setup Gradle 9.8
