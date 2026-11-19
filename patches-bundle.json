@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-11-17T00:00:00Z",
-  "description": "cimon-bkr development fork. Latest stable installable bundle remains upstream v0.2.0; fork v0.2.1 is pending CI and device verification.",
-  "download_url": "https://github.com/Berkelyum9/reddit-nsfw-only/releases/download/v0.2.0/reddit-nsfw-only-0.2.0.mpp",
+  "created_at": "2026-11-19T00:00:00Z",
+  "description": "Stable fork release remains v0.2.2. Combined live Block NSFW / NSFW-only modes are under development on feature/live-nsfw-modes.",
+  "download_url": "https://github.com/cimon-bkr/reddit-nsfw-only/releases/download/v0.2.2/reddit-nsfw-only-0.2.2.mpp",
   "signature_download_url": "",
-  "version": "0.2.0"
+  "version": "0.2.2"
 }
