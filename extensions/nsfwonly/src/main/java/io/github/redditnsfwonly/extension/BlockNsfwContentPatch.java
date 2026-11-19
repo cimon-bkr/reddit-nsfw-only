@@ -135,6 +135,7 @@ public final class BlockNsfwContentPatch {
                 List<Object> edges = (List<Object>) raw;
                 List<Object> keep = new ArrayList<>(edges.size());
                 int recognizedPosts = 0;
+                int removedPosts = 0;
 
                 for (Object edge : edges) {
                     NsfwCellScanner.Scan scan = NsfwCellScanner.scan(edge);
@@ -147,6 +148,7 @@ public final class BlockNsfwContentPatch {
                     if (shouldKeepPost(scan.nsfw)) {
                         keep.add(edge);
                     } else {
+                        removedPosts++;
                         Log.d(TAG, "Removing " + (scan.nsfw ? "NSFW" : "SFW") + " Home post");
                     }
                 }
@@ -164,9 +166,7 @@ public final class BlockNsfwContentPatch {
                 edges.clear();
                 edges.addAll(keep);
                 Log.d(TAG, "Home filter kept " + keep.size() + " feed units and removed "
-                        + (recognizedPosts - (int) keep.stream().filter(
-                                item -> NsfwCellScanner.scan(item) != null).count())
-                        + " posts");
+                        + removedPosts + " posts");
                 return;
             }
             Log.d(TAG, "Home feed unchanged: no recognized post list found");
